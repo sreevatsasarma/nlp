@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>From Words to Actions — Live Robot Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101820; --graphite:#4A565E; --paper:#EDF0F1; --panel:#FFFFFF; --rule:#C7D0D4;
+  --lang:#4B3F9E; --robot:#007C84; --signal:#C8761A; --deep:#0B1A22; --ok:#1F7A4D; --bad:#9B2F28;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans","Noto Sans Devanagari","Noto Sans Telugu","Nirmala UI","Segoe UI",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+button{font:inherit;cursor:pointer}
+
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* ---------- header ---------- */
+header{background:var(--deep);color:#fff;padding:9px 16px;display:flex;align-items:center;gap:14px;flex:none;flex-wrap:wrap}
+header h1{font-family:Archivo,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+header h1 .to{color:#8B84D6} header h1 .act{color:#4FC4C8}
+header .sub{font-size:12px;color:#93A7AE;border-left:1px solid #2C4048;padding-left:14px}
+header .spacer{flex:1}
+
+.seg{display:flex;border:1px solid #2C4048;border-radius:6px;overflow:hidden}
+.seg button{background:transparent;color:#B7C6CB;border:0;padding:7px 12px;font-size:13px;border-right:1px solid #2C4048}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--lang);color:#fff;font-weight:600}
+.seg.small button{padding:6px 10px;font-size:12px}
+
+.btn{border:0;border-radius:6px;padding:8px 15px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.btn.mic{background:var(--robot);color:#fff}
+.btn.mic:hover{background:#00646B}
+.btn.mic.live{background:#C0453E;animation:pulse 1.1s infinite}
+.btn.mic:disabled{background:#3A4A52;cursor:not-allowed}
+.btn.play{background:#3A4A52;color:#fff}
+.btn.play.on{background:var(--signal)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.dot{width:8px;height:8px;border-radius:50%;background:#fff}
+
+/* ---------- main ---------- */
+main{flex:1;display:grid;grid-template-columns:1fr 400px;gap:10px;padding:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:8px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.cardhead{padding:8px 13px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px;flex:none;
+  font-family:Archivo,sans-serif;font-weight:700;font-size:13px}
+.cardhead .tag{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--graphite);font-weight:400}
+
+.worldwrap{position:relative;flex:1;min-height:0;background:#0E1B22}
+#view3d{display:block;width:100%;height:100%}
+
+.mini{position:absolute;left:10px;bottom:10px;background:rgba(255,255,255,.95);border:1px solid var(--rule);
+  border-radius:6px;padding:5px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.mini canvas{display:block;border-radius:3px}
+.mini .lbl{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--graphite);padding:1px 2px 3px}
+
+.legend{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.93);border:1px solid var(--rule);
+  border-radius:5px;padding:7px 10px;font-size:10.5px;color:var(--graphite);line-height:1.65;font-family:"IBM Plex Mono",monospace}
+.legend i{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:middle;border-radius:2px}
+
+.banner{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(11,26,34,.92);color:#fff;
+  padding:9px 16px;border-radius:6px;font-size:12.5px;display:none;max-width:70%;text-align:center}
+.banner.show{display:block}
+
+.viewbtns{position:absolute;top:10px;left:10px;display:flex;gap:5px}
+.viewbtns button{background:rgba(255,255,255,.93);border:1px solid var(--rule);border-radius:5px;padding:5px 10px;
+  font-size:11.5px;color:var(--ink)}
+.viewbtns button.on{background:var(--lang);color:#fff;border-color:var(--lang)}
+
+/* ---------- side ---------- */
+.side{display:flex;flex-direction:column;gap:10px;min-height:0}
+.pipe{display:flex;gap:3px;padding:9px 11px;flex:none}
+.st{flex:1;border:1px solid var(--rule);border-radius:4px;padding:5px 3px;text-align:center;
+  font-size:9px;line-height:1.2;color:#8B979E;background:#F7F9F9;transition:all .15s}
+.st b{display:block;font-family:Archivo,sans-serif;font-size:10px;font-weight:700;margin-bottom:2px}
+.st.on{background:var(--c);border-color:var(--c);color:#fff}
+.st.on b{color:#fff}
+.st.done{border-color:var(--c);color:var(--c);background:#fff}
+.st.done b{color:var(--c)}
+
+.read{flex:1;overflow-y:auto;padding:0 13px 13px;min-height:0}
+.row{padding:8px 0;border-bottom:1px solid #E7ECEE}
+.row:last-child{border-bottom:0}
+.k{font-family:"IBM Plex Mono",monospace;font-size:10px;color:#8B979E;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.v{font-size:13.5px;line-height:1.4;word-wrap:break-word}
+.v.mono{font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.5}
+.v.heard{font-size:16px;font-weight:600}
+.muted{color:#9AA6AC}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11.5px;margin:2px 4px 2px 0;font-family:"IBM Plex Mono",monospace}
+.chip.ok{background:#E7F2EC;color:var(--ok);border:1px solid #BFDFCE}
+.chip.amb{background:#FCF1E2;color:#8A4E08;border:1px solid #EDD3AE}
+.chip.no{background:#FBE9E8;color:var(--bad);border:1px solid #F0C6C3}
+.chip.n{background:#EFEDF8;color:var(--lang);border:1px solid #D2CDEE}
+
+.say{border-left:3px solid var(--robot);background:#E9F4F4;padding:9px 11px;border-radius:0 5px 5px 0}
+.say.ask{border-left-color:var(--signal);background:#FCF5EC}
+.say.no{border-left-color:var(--bad);background:#FBE9E8}
+.say .who{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--graphite);margin-bottom:3px}
+.say .txt{font-size:14.5px;line-height:1.35}
+
+.diag{background:#FBE9E8;border:1px solid #F0C6C3;border-radius:5px;padding:10px 12px;font-size:12.5px;line-height:1.5}
+.diag b{display:block;color:var(--bad);margin-bottom:5px;font-size:13px}
+.diag ol{margin:6px 0 0 16px}
+.diag li{margin-bottom:4px}
+
+/* ---------- footer ---------- */
+footer{flex:none;padding:0 10px 10px;display:flex;flex-direction:column;gap:7px}
+.inbar{display:flex;gap:7px}
+.inbar input{flex:1;padding:11px 14px;border:1px solid var(--rule);border-radius:6px;font:inherit;font-size:15px;background:#fff;color:var(--ink)}
+.inbar input:focus{outline:2px solid var(--lang);outline-offset:-1px}
+.inbar button{padding:11px 18px;border:0;border-radius:6px;background:var(--lang);color:#fff;font-weight:600;font-size:13.5px}
+.inbar button.ghost{background:#fff;color:var(--graphite);border:1px solid var(--rule)}
+.examples{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.examples .lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;color:#8B979E;margin-right:2px}
+.ex{padding:5px 11px;border:1px solid var(--rule);border-radius:14px;background:#fff;font-size:12.5px;color:var(--ink)}
+.ex:hover{border-color:var(--lang);color:var(--lang)}
+.ex.amb{border-style:dashed;border-color:#E0B67A;color:#8A4E08}
+
+/* ---------- responsive ---------- */
+.mobtoggle{display:none}
+@media (max-width:980px){
+  main{grid-template-columns:1fr;grid-template-rows:minmax(300px,1fr) auto;gap:8px;padding:8px}
+  .side{max-height:46vh}
+  .mini canvas{width:150px;height:111px}
+  header .sub{display:none}
+}
+@media (max-width:620px){
+  header{padding:7px 10px;gap:8px}
+  header h1{font-size:15px}
+  .seg button{padding:6px 9px;font-size:12px}
+  .btn{padding:7px 11px;font-size:12.5px}
+  .legend{display:none}
+  .mini{left:7px;bottom:7px;padding:3px}
+  .mini canvas{width:104px;height:77px}
+  .mini .lbl{font-size:8px;padding:0 1px 2px}
+  .viewbtns button{padding:4px 8px;font-size:10.5px}
+  .examples{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+  .ex{white-space:nowrap;flex:none}
+  .inbar input{font-size:16px}
+  .banner{max-width:88%;font-size:11.5px;padding:7px 12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>From Words <span class="to">to</span> <span class="act">Actions</span></h1>
+    <div class="sub">Natural-language control of a simulated mobile robot</div>
+    <div class="spacer"></div>
+    <div class="seg" id="langsel">
+      <button data-l="en" class="on">English</button>
+      <button data-l="hi">हिन्दी</button>
+      <button data-l="te">తెలుగు</button>
+    </div>
+    <button class="btn play" id="demo">▶ Auto demo</button>
+    <button class="btn mic" id="mic"><span class="dot"></span><span id="micTxt">Speak</span></button>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="cardhead">Robot's world<span class="tag" id="poseTag">—</span></div>
+      <div class="worldwrap">
+        <canvas id="view3d"></canvas>
+        <div class="viewbtns" id="viewbtns">
+          <button data-v="chase" class="on">Chase</button>
+          <button data-v="wide">Wide</button>
+          <button data-v="eye">Robot eye</button>
+        </div>
+        <div class="legend">
+          <i style="background:#6C5FD0"></i>resolved target<br>
+          <i style="background:#E8A33D"></i>ambiguous<br>
+          <i style="background:#2FB3AE"></i>planned path
+        </div>
+        <div class="mini">
+          <div class="lbl">global map</div>
+          <canvas id="minimap" width="250" height="185"></canvas>
+        </div>
+        <div class="banner" id="banner"></div>
+      </div>
+    </div>
+
+    <div class="side" id="side">
+      <div class="card" style="flex:none">
+        <div class="cardhead">Pipeline</div>
+        <div class="pipe" id="pipe"></div>
+      </div>
+      <div class="card">
+        <div class="cardhead">What the robot understood<span class="tag" id="srcTag">—</span></div>
+        <div class="read" id="read">
+          <div class="row"><div class="k">status</div><div class="v muted">Waiting for a command. Speak, type, tap an example, or press Auto demo.</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="inbar">
+      <input id="cmd" placeholder="Type a command in English, हिन्दी or తెలుగు…" autocomplete="off">
+      <button id="send">Send</button>
+      <button id="reset" class="ghost">Reset</button>
+    </div>
+    <div class="examples" id="examples"></div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════
+   1.  WORLD  — 14 × 10 m, partitions, pillars, crates
+   ═══════════════════════════════════════════════════════════ */
+const W = 14.0, H = 10.0, ROBOT_R = 0.24;
+
+/* every wall/obstacle: axis-aligned box on the floor plan */
+const WALLS = [
+  // perimeter
+  {x:0,     y:0,      w:W,    h:0.18, hgt:1.5},
+  {x:0,     y:H-0.18, w:W,    h:0.18, hgt:1.5},
+  {x:0,     y:0,      w:0.18, h:H,    hgt:1.5},
+  {x:W-0.18,y:0,      w:0.18, h:H,    hgt:1.5},
+  // vertical partition with a doorway gap between y=3.4 and y=6.3
+  {x:6.10,  y:0.18,   w:0.18, h:3.22, hgt:1.15},
+  {x:6.10,  y:6.30,   w:0.18, h:3.52, hgt:1.15},
+  // horizontal partition making a back room, entry on the left of x=9.6
+  {x:9.60,  y:6.85,   w:4.22, h:0.18, hgt:1.15},
+  // pillars
+  {x:3.10,  y:5.30,   w:0.46, h:0.46, hgt:2.3, kind:'pillar'},
+  {x:9.10,  y:2.40,   w:0.46, h:0.46, hgt:2.3, kind:'pillar'},
+  // crates (pure obstacles, not referenceable)
+  {x:8.00,  y:0.90,   w:0.70, h:0.70, hgt:0.62, kind:'crate'},
+  {x:7.55,  y:8.35,   w:0.86, h:0.62, hgt:0.55, kind:'crate'},
+  {x:12.30, y:2.15,   w:0.74, h:0.74, hgt:0.62, kind:'crate'},
+  {x:3.95,  y:2.65,   w:0.64, h:0.64, hgt:0.58, kind:'crate'}
+];
+
+/* named landmarks the language can refer to */
+const OBJECTS = [
+  { id:'table_red', x:2.05, y:1.45, r:0.46, hgt:0.74, color:'#C0453E', shape:'rect',
+    label:{en:'red table', hi:'लाल मेज़', te:'ఎరుపు బల్ల'},
+    nouns:['table','desk','टेबल','मेज़','मेज','mez','mej','బల్ల','టేబుల్','balla'],
+    mods :['red','लाल','laal','ఎరుపు','ఎర్ర','erupu','erra'] },
+
+  { id:'table_blue', x:11.30, y:1.30, r:0.46, hgt:0.74, color:'#2C5F9E', shape:'rect',
+    label:{en:'blue table', hi:'नीली मेज़', te:'నీలం బల్ల'},
+    nouns:['table','desk','टेबल','मेज़','मेज','mez','mej','బల్ల','టేబుల్','balla'],
+    mods :['blue','नील','neel','nila','నీల','neelam'] },
+
+  { id:'shelf', x:4.30, y:0.72, r:0.40, hgt:1.45, color:'#8A6A3E', shape:'rect',
+    label:{en:'shelf', hi:'अलमारी', te:'అర'},
+    nouns:['shelf','rack','cupboard','almirah','अलमार','रैक','almar','rack','అర','రాక్','షెల్ఫ్'],
+    mods :[] },
+
+  { id:'door', x:13.55, y:5.10, r:0.36, hgt:2.05, color:'#7A5B36', shape:'rect',
+    label:{en:'door', hi:'दरवाज़ा', te:'తలుపు'},
+    nouns:['door','दरवाज़','दरवाज','darwaz','darvaz','తలుపు','తలుప','thalup','talup'],
+    mods :[] },
+
+  { id:'window', x:0.42, y:7.60, r:0.34, hgt:1.90, color:'#4C8FA6', shape:'rect',
+    label:{en:'window', hi:'खिड़की', te:'కిటికీ'},
+    nouns:['window','खिड़क','खिडक','khidk','kidk','కిటికీ','కిటిక','kitik'],
+    mods :[] },
+
+  { id:'plant', x:1.70, y:8.75, r:0.34, hgt:1.05, color:'#2E7D4F', shape:'circle',
+    label:{en:'plant', hi:'पौधा', te:'మొక్క'},
+    nouns:['plant','पौध','पेड़','paudh','మొక్క','చెట్ట','mokka','chett'],
+    mods :[] },
+
+  { id:'box', x:8.05, y:4.85, r:0.36, hgt:0.58, color:'#B98A2E', shape:'rect',
+    label:{en:'box', hi:'डिब्बा', te:'పెట్టె'},
+    nouns:['box','carton','डिब्ब','डब्ब','dibb','dabb','పెట్టె','పెట్ట','pett'],
+    mods :[] },
+
+  { id:'dock', x:0.95, y:4.60, r:0.36, hgt:0.14, color:'#007C84', shape:'rect',
+    label:{en:'charging dock', hi:'चार्जिंग स्टेशन', te:'ఛార్జింగ్ స్టేషన్'},
+    nouns:['dock','charger','charging','station','चार्जिंग','चार्जर','स्टेशन','ఛార్జింగ్','చార్జింగ్','స్టేషన్'],
+    mods :[] },
+
+  { id:'person', x:11.80, y:8.55, r:0.32, hgt:1.72, color:'#4B3F9E', shape:'circle',
+    label:{en:'person', hi:'व्यक्ति', te:'వ్యక్తి'},
+    nouns:['person','human','व्यक्ति','आदमी','इंसान','vyakti','aadmi','వ్యక్తి','మనిషి','manishi'],
+    mods :[], isMe:true },
+
+  { id:'chair', x:9.95, y:4.20, r:0.34, hgt:0.92, color:'#5B7D52', shape:'circle',
+    label:{en:'chair', hi:'कुर्सी', te:'కుర్చీ'},
+    nouns:['chair','stool','कुर्स','kurs','కుర్చీ','కుర్చ','kurch'],
+    mods :[] }
+];
+
+/* ═══════════════════════════════════════════════════════════
+   2.  LEXICON — all three languages matched simultaneously
+   ═══════════════════════════════════════════════════════════ */
+const PAT = {
+  stop:  ['stop','halt','freeze','wait','stand still',
+          'रुको','रुक','रुकिए','ठहरो','ruko','ruk','thamo',
+          'ఆగు','ఆపు','ఆగిపో','aagu','agu','aapu','aagipo'],
+  back:  ['back','backward','backwards','reverse',
+          'पीछे','वापस','peeche','pichhe','piche','wapas','vapas',
+          'వెనక్కి','వెనుక','వెనక','venakki','venaku','venaka'],
+  fwd:   ['forward','ahead','straight','front','advance',
+          'आगे','aage','age','badho',
+          'ముందుకు','ముందు','mundhuku','munduku','mundhu','mundu'],
+  left:  ['left','बाएं','बाएँ','बायें','बायीं','baayen','bayen','baen','baaye','baye',
+          'ఎడమ','ఎడమవైపు','edama','yedama'],
+  right: ['right','दाएं','दाएँ','दायें','दायीं','daayen','dayen','daen','daaye','daye',
+          'కుడి','కుడివైపు','kudi'],
+  turn:  ['turn','rotate','spin','face','swivel','मुड़','मोड़','घूम','mudo','mud','ghoom','ghum',
+          'తిరుగు','తిరగండి','thirugu','tirugu','tiragu'],
+  goto:  ['go to','goto','move to','drive to','navigate to','head to','near','next to','towards','toward','reach',
+          'के पास','के करीब','तक जाओ','पास जाओ','ke paas','ke pas','paas','kareeb',
+          'దగ్గరకు','దగ్గరికి','దగ్గర','వద్దకు','daggaraku','daggariki','daggara','vaddaku'],
+  go:    ['go','move','drive','walk','proceed','जाओ','जा','चलो','चल','बढ़ो','jao','ja','chalo','chal','badho',
+          'వెళ్ళు','వెళ్లు','వెళ్ళండి','పో','vellu','vella'],
+  /* NEW — "come to me": deictic, grounded to the person */
+  come:  ['come','come here','come to me','approach me','here',
+          'आओ','आ','इधर','मेरे पास','idhar','aao','mere paas',
+          'రా','రండి','ఇక్కడికి','నా దగ్గరికి','ra','randi','ikkadiki'],
+  slow:  ['slow','slowly','gently','careful','carefully','धीरे','आहिस्ता','dheere','dhire','ahista',
+          'నెమ్మదిగా','మెల్లగా','nemmadiga','mellaga'],
+  fast:  ['fast','quick','quickly','hurry','faster','तेज','तेज़','जल्दी','tez','tej','jaldi',
+          'వేగంగా','తొందరగా','vegamga','thondaraga'],
+  degrees:['degree','degrees','deg','डिग्री','digree','డిగ్రీ','డిగ్రీలు'],
+  half:  ['half','आधा','आधे','aadha','adha','సగం','sagam'],
+  around:['around','about turn','u turn','u-turn','180','पीछे मुड़','వెనక్కి తిరుగు']
+};
+
+const NUMWORDS = {
+  one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,
+  'एक':1,'दो':2,'तीन':3,'चार':4,'पांच':5,'पाँच':5,'छह':6,'छः':6,'सात':7,'आठ':8,'नौ':9,'दस':10,
+  ek:1,do:2,teen:3,char:4,chaar:4,paanch:5,panch:5,saat:7,aath:8,nau:9,das:10,
+  'ఒకటి':1,'రెండు':2,'మూడు':3,'నాలుగు':4,'ఐదు':5,'ఆరు':6,'ఏడు':7,'ఎనిమిది':8,'తొమ్మిది':9,'పది':10,
+  okati:1,rendu:2,moodu:3,mudu:3,naalugu:4,nalugu:4,aidu:5,aaru:6,aru:6,edu:7,enimidi:8,thommidi:9,padi:10
+};
+const DIGITMAP = {'०':'0','१':'1','२':'2','३':'3','४':'4','५':'5','६':'6','७':'7','८':'8','९':'9',
+                  '౦':'0','౧':'1','౨':'2','౩':'3','౪':'4','౫':'5','౬':'6','౭':'7','౮':'8','౯':'9'};
+
+function normalise(s){
+  let t=(s||'').toLowerCase().trim();
+  t=t.replace(/[०-९౦-౯]/g,d=>DIGITMAP[d]||d).replace(/[.,!?;:"'`]/g,' ').replace(/\s+/g,' ');
+  return ' '+t+' ';
+}
+const tokens = t => t.trim().split(/\s+/).filter(Boolean);
+function termHit(toks, full, term){
+  if (term.includes(' ')) return full.includes(term);
+  return toks.some(k => k===term || (term.length>=3 && k.startsWith(term)));
+}
+function has(t, list){ const k=tokens(t); return list.some(p=>termHit(k,t,p.toLowerCase())); }
+
+function findNumber(t){
+  const m=t.match(/(\d+(?:\.\d+)?)/); if(m) return parseFloat(m[1]);
+  const k=tokens(t);
+  for(const w in NUMWORDS) if(k.includes(w)) return NUMWORDS[w];
+  if(has(t,PAT.half)) return 0.5;
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3.  PARSER
+   ═══════════════════════════════════════════════════════════ */
+function matchObjects(t){
+  const k=tokens(t);
+  let hits=OBJECTS.filter(o=>o.nouns.some(n=>termHit(k,t,n)));
+  if(hits.length>1){
+    const refined=hits.filter(o=>o.mods.some(m=>termHit(k,t,m)));
+    if(refined.length>=1) hits=refined;
+  }
+  return hits;
+}
+
+function parse(raw){
+  const t=normalise(raw);
+  const out={raw, norm:t.trim(), intent:null, slots:{}, note:null};
+  if(!t.trim()){ out.intent='empty'; return out; }
+
+  if(has(t,PAT.slow)) out.slots.speed='slow';
+  else if(has(t,PAT.fast)) out.slots.speed='fast';
+
+  if(has(t,PAT.stop)){ out.intent='stop'; return out; }
+
+  const cands=matchObjects(t);
+  if(cands.length>0){ out.intent='goto'; out.slots.candidates=cands; return out; }
+
+  /* deixis: "come here" / "రా" / "आओ" with no object named -> come to the speaker */
+  if(has(t,PAT.come)){
+    const me=OBJECTS.find(o=>o.isMe);
+    if(me){
+      out.intent='goto'; out.slots.candidates=[me]; out.slots.deictic=true;
+      out.note='"here" resolved to the speaker’s position';
+      return out;
+    }
+  }
+
+  const L=has(t,PAT.left), R=has(t,PAT.right);
+  if(L||R){
+    out.intent='turn'; out.slots.dir=L?'left':'right';
+    const n=findNumber(t);
+    out.slots.deg=(n!==null&&has(t,PAT.degrees))?n:(n!==null&&n>15)?n:90;
+    return out;
+  }
+  if(has(t,PAT.around)){ out.intent='turn'; out.slots.dir='left'; out.slots.deg=180; return out; }
+
+  const B=has(t,PAT.back), F=has(t,PAT.fwd);
+  if(B||F||has(t,PAT.go)){
+    out.intent='drive'; out.slots.dir=B?-1:1;
+    const n=findNumber(t);
+    out.slots.dist=(n!==null)?n:1.0;
+    if(n===null) out.note='no distance given, assuming 1 m';
+    return out;
+  }
+  out.intent='unknown';
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4.  OCCUPANCY GRID + A*
+   ═══════════════════════════════════════════════════════════ */
+const CELL=0.10, GW=Math.round(W/CELL), GH=Math.round(H/CELL);
+let grid=null;
+function buildGrid(){
+  grid=new Uint8Array(GW*GH);
+  const pad=ROBOT_R+0.06;
+  for(let gy=0;gy<GH;gy++) for(let gx=0;gx<GW;gx++){
+    const x=(gx+0.5)*CELL, y=(gy+0.5)*CELL;
+    let blk=false;
+    for(const w of WALLS){
+      if(x>w.x-pad&&x<w.x+w.w+pad&&y>w.y-pad&&y<w.y+w.h+pad){blk=true;break;}
+    }
+    if(!blk) for(const o of OBJECTS){
+      if(Math.hypot(x-o.x,y-o.y)<o.r+pad-0.02){blk=true;break;}
+    }
+    grid[gy*GW+gx]=blk?1:0;
+  }
+}
+const free=(gx,gy)=>gx>=0&&gy>=0&&gx<GW&&gy<GH&&grid[gy*GW+gx]===0;
+function nearestFree(gx,gy){
+  if(free(gx,gy))return[gx,gy];
+  for(let r=1;r<34;r++) for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+    if(free(gx+dx,gy+dy)) return [gx+dx,gy+dy];
+  }
+  return null;
+}
+function astar(sx,sy,tx,ty){
+  const s=nearestFree(Math.floor(sx/CELL),Math.floor(sy/CELL));
+  const g=nearestFree(Math.floor(tx/CELL),Math.floor(ty/CELL));
+  if(!s||!g) return null;
+  const si=s[1]*GW+s[0], gi=g[1]*GW+g[0];
+  if(si===gi) return [[sx,sy],[(g[0]+.5)*CELL,(g[1]+.5)*CELL]];
+  const N=GW*GH, gS=new Float32Array(N).fill(Infinity), came=new Int32Array(N).fill(-1), closed=new Uint8Array(N);
+  const hEuc=(ax,ay,bx,by)=>Math.hypot(ax-bx,ay-by);
+  gS[si]=0;
+  const open=[[hEuc(s[0],s[1],g[0],g[1]),si]];
+  const nb=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.4142],[1,-1,1.4142],[-1,1,1.4142],[-1,-1,1.4142]];
+  let guard=0;
+  while(open.length&&guard++<400000){
+    open.sort((a,b)=>a[0]-b[0]);
+    const cur=open.shift()[1];
+    if(closed[cur])continue;
+    closed[cur]=1;
+    if(cur===gi)break;
+    const cx=cur%GW, cy=(cur-cx)/GW;
+    for(const [dx,dy,c] of nb){
+      const nx=cx+dx, ny=cy+dy;
+      if(!free(nx,ny))continue;
+      if(dx&&dy&&(!free(cx+dx,cy)||!free(cx,cy+dy)))continue;
+      const ni=ny*GW+nx; if(closed[ni])continue;
+      const ng=gS[cur]+c;
+      if(ng<gS[ni]){ gS[ni]=ng; came[ni]=cur; open.push([ng+hEuc(nx,ny,g[0],g[1]),ni]); }
+    }
+  }
+  if(came[gi]===-1&&gi!==si) return null;
+  const cells=[]; let c=gi;
+  while(c!==-1){ const cx=c%GW; cells.push([(cx+.5)*CELL,((c-cx)/GW+.5)*CELL]); c=came[c]; }
+  cells.reverse(); cells[0]=[sx,sy];
+  return simplify(cells);
+}
+function lineFree(ax,ay,bx,by){
+  const d=Math.hypot(bx-ax,by-ay), n=Math.max(2,Math.ceil(d/(CELL*0.6)));
+  for(let i=0;i<=n;i++){
+    const x=ax+(bx-ax)*i/n, y=ay+(by-ay)*i/n;
+    if(!free(Math.floor(x/CELL),Math.floor(y/CELL))) return false;
+  }
+  return true;
+}
+function simplify(pts){
+  const out=[pts[0]]; let i=0;
+  while(i<pts.length-1){
+    let j=pts.length-1;
+    while(j>i+1&&!lineFree(pts[i][0],pts[i][1],pts[j][0],pts[j][1])) j--;
+    out.push(pts[j]); i=j;
+  }
+  return out;
+}
+function freeRun(x,y,th,maxD){
+  const step=0.04; let d=0;
+  while(d<maxD){
+    const nx=x+Math.cos(th)*(d+step), ny=y+Math.sin(th)*(d+step);
+    if(!free(Math.floor(nx/CELL),Math.floor(ny/CELL))) return d;
+    d+=step;
+  }
+  return maxD;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5.  ROBOT
+   ═══════════════════════════════════════════════════════════ */
+const HOME={x:2.6,y:3.6,th:0};
+const robot={x:HOME.x,y:HOME.y,th:HOME.th,v:0,w:0,maxV:.85,maxW:2.1,
+             queue:[],path:[],trail:[],target:null,ambig:null,onDone:null,busy:false};
+const wrap=a=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function setSpeed(m){
+  robot.maxV=m==='slow'?.34:m==='fast'?1.35:.85;
+  robot.maxW=m==='slow'?1.0:m==='fast'?3.0:2.1;
+}
+function stepRobot(dt){
+  if(!robot.queue.length){ robot.v=0; robot.w=0; if(robot.busy) finishMotion(); return; }
+  const a=robot.queue[0];
+  if(a.type==='rotate'){
+    const e=wrap(a.th-robot.th);
+    robot.w=clamp(2.6*e,-robot.maxW,robot.maxW); robot.v=0;
+    if(Math.abs(e)<0.018){robot.w=0;robot.th=a.th;robot.queue.shift();}
+  } else if(a.type==='drive'){
+    const dx=a.x-robot.x, dy=a.y-robot.y, dist=Math.hypot(dx,dy);
+    if(a.rev){ robot.w=0; robot.v=-clamp(1.4*dist,.05,robot.maxV*.6); }
+    else{
+      const e=wrap(Math.atan2(dy,dx)-robot.th);
+      if(Math.abs(e)>0.30){ robot.w=clamp(2.6*e,-robot.maxW,robot.maxW); robot.v=0; }
+      else{ robot.w=clamp(1.8*e,-robot.maxW,robot.maxW); robot.v=clamp(1.4*dist,.05,robot.maxV); }
+    }
+    if(dist<0.055){robot.v=0;robot.w=0;robot.queue.shift();}
+  } else if(a.type==='pause'){
+    robot.v=0;robot.w=0;a.t-=dt; if(a.t<=0) robot.queue.shift();
+  }
+  robot.th=wrap(robot.th+robot.w*dt);
+  robot.x+=Math.cos(robot.th)*robot.v*dt;
+  robot.y+=Math.sin(robot.th)*robot.v*dt;
+  const L=robot.trail[robot.trail.length-1];
+  if(!L||Math.hypot(L[0]-robot.x,L[1]-robot.y)>0.06){
+    robot.trail.push([robot.x,robot.y]);
+    if(robot.trail.length>1200) robot.trail.shift();
+  }
+}
+function finishMotion(){ robot.busy=false; if(robot.onDone){const f=robot.onDone; robot.onDone=null; f();} }
+
+/* ═══════════════════════════════════════════════════════════
+   6.  MINIMAL 3D RENDERER  (no libraries — works offline)
+   ═══════════════════════════════════════════════════════════ */
+const V=(x,y,z)=>({x,y,z});
+const vsub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
+const vadd=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+const vmul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vcross=(a,b)=>V(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);
+const vnorm=a=>{const l=Math.hypot(a.x,a.y,a.z)||1;return vmul(a,1/l);};
+
+/* world: x east, y up, z south — floor point (px,py) -> (px, h, py) */
+const cam={eye:V(0,3,-4),tgt:V(0,0,0),fov:1.05,mode:'chase',
+           cx:0,cy:0,cz:0,tx:0,ty:0,tz:0,init:false};
+let basisS,basisU,basisF;
+
+function setCamera(){
+  const f=V(Math.cos(robot.th),0,Math.sin(robot.th));
+  let eye,tgt;
+  if(cam.mode==='chase'){
+    eye=V(robot.x-f.x*3.6, 2.7, robot.y-f.z*3.6);
+    tgt=V(robot.x+f.x*2.2, 0.35, robot.y+f.z*2.2);
+  } else if(cam.mode==='eye'){
+    eye=V(robot.x+f.x*0.12, 0.62, robot.y+f.z*0.12);
+    tgt=V(robot.x+f.x*4.0, 0.45, robot.y+f.z*4.0);
+  } else { /* wide — orientation matched to the minimap: +x right, +y(map) toward viewer */
+    eye=V(W*0.5, 10.4, H+2.6);
+    tgt=V(W*0.5, 0, H*0.40);
+  }
+  if(!cam.init){ cam.cx=eye.x;cam.cy=eye.y;cam.cz=eye.z; cam.tx=tgt.x;cam.ty=tgt.y;cam.tz=tgt.z; cam.init=true; }
+  const k=cam.mode==='wide'?0.12:0.18;
+  cam.cx+=(eye.x-cam.cx)*k; cam.cy+=(eye.y-cam.cy)*k; cam.cz+=(eye.z-cam.cz)*k;
+  cam.tx+=(tgt.x-cam.tx)*k; cam.ty+=(tgt.y-cam.ty)*k; cam.tz+=(tgt.z-cam.tz)*k;
+  cam.eye=V(cam.cx,cam.cy,cam.cz); cam.tgt=V(cam.tx,cam.ty,cam.tz);
+  basisF=vnorm(vsub(cam.tgt,cam.eye));
+  basisS=vnorm(vcross(basisF,V(0,1,0)));
+  basisU=vcross(basisS,basisF);
+}
+function toCam(p){
+  const d=vsub(p,cam.eye);
+  return {x:vdot(d,basisS), y:vdot(d,basisU), z:vdot(d,basisF)};
+}
+const NEAR=0.08;
+function clipNear(poly){
+  const out=[];
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    const ai=a.z>=NEAR, bi=b.z>=NEAR;
+    if(ai) out.push(a);
+    if(ai!==bi){
+      const t=(NEAR-a.z)/(b.z-a.z);
+      out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t, z:NEAR});
+    }
+  }
+  return out;
+}
+let VW=0,VH=0,FOCAL=0;
+const proj=p=>({x:VW/2+p.x*FOCAL/p.z, y:VH/2-p.y*FOCAL/p.z});
+
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.round(clamp(r*amt,0,255)); g=Math.round(clamp(g*amt,0,255)); b=Math.round(clamp(b*amt,0,255));
+  return `rgb(${r},${g},${b})`;
+}
+const LIGHT=vnorm(V(-0.45,0.82,-0.36));
+
+/* build the 5 visible faces of an axis-aligned box */
+function boxFaces(x0,z0,x1,z1,y0,y1,color,tag){
+  const P=(x,y,z)=>V(x,y,z);
+  const f=[];
+  f.push({pts:[P(x0,y1,z0),P(x1,y1,z0),P(x1,y1,z1),P(x0,y1,z1)], n:V(0,1,0), c:color, tag});
+  f.push({pts:[P(x0,y0,z0),P(x0,y1,z0),P(x1,y1,z0),P(x1,y0,z0)], n:V(0,0,-1), c:color, tag});
+  f.push({pts:[P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1),P(x0,y0,z1)], n:V(0,0,1),  c:color, tag});
+  f.push({pts:[P(x0,y0,z1),P(x0,y1,z1),P(x0,y1,z0),P(x0,y0,z0)], n:V(-1,0,0), c:color, tag});
+  f.push({pts:[P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)], n:V(1,0,0),  c:color, tag});
+  return f;
+}
+function cylFaces(cx,cz,r,y0,y1,color,seg,tag){
+  const f=[], N=seg||10;
+  const ring=k=>{const a=k/N*Math.PI*2; return [cx+Math.cos(a)*r, cz+Math.sin(a)*r];};
+  for(let k=0;k<N;k++){
+    const [ax,az]=ring(k), [bx,bz]=ring(k+1);
+    f.push({pts:[V(ax,y0,az),V(ax,y1,az),V(bx,y1,bz),V(bx,y0,bz)],
+            n:vnorm(V((ax+bx)/2-cx,0,(az+bz)/2-cz)), c:color, tag});
+  }
+  const top=[]; for(let k=0;k<N;k++){const [ax,az]=ring(k); top.push(V(ax,y1,az));}
+  f.push({pts:top, n:V(0,1,0), c:color, tag});
+  return f;
+}
+
+const cv3=document.getElementById('view3d'), g3=cv3.getContext('2d');
+let DPR=1;
+function resize3(){
+  const r=cv3.parentElement.getBoundingClientRect();
+  DPR=window.devicePixelRatio||1;
+  cv3.width=Math.max(320,r.width*DPR); cv3.height=Math.max(220,r.height*DPR);
+  g3.setTransform(DPR,0,0,DPR,0,0);
+  VW=r.width; VH=r.height;
+  FOCAL=(VH/2)/Math.tan(cam.fov/2);
+}
+
+function drawSeg3(a,b,style,width,dash){
+  const ca=toCam(a), cb=toCam(b);
+  let A=ca, B=cb;
+  if(ca.z<NEAR&&cb.z<NEAR) return;
+  if(ca.z<NEAR){ const t=(NEAR-ca.z)/(cb.z-ca.z); A={x:ca.x+(cb.x-ca.x)*t,y:ca.y+(cb.y-ca.y)*t,z:NEAR}; }
+  if(cb.z<NEAR){ const t=(NEAR-cb.z)/(ca.z-cb.z); B={x:cb.x+(ca.x-cb.x)*t,y:cb.y+(ca.y-cb.y)*t,z:NEAR}; }
+  const p=proj(A), q=proj(B);
+  g3.strokeStyle=style; g3.lineWidth=width||1;
+  if(dash) g3.setLineDash(dash); else g3.setLineDash([]);
+  g3.beginPath(); g3.moveTo(p.x,p.y); g3.lineTo(q.x,q.y); g3.stroke();
+  g3.setLineDash([]);
+}
+
+function draw3D(){
+  setCamera();
+  g3.clearRect(0,0,VW,VH);
+
+  /* sky / backdrop */
+  const sky=g3.createLinearGradient(0,0,0,VH);
+  sky.addColorStop(0,'#16303C'); sky.addColorStop(1,'#0B1A22');
+  g3.fillStyle=sky; g3.fillRect(0,0,VW,VH);
+
+  /* floor drawn first and outside the depth sort: nothing is ever below it */
+  (function(){
+    const poly=clipNear([V(0,0,0),V(W,0,0),V(W,0,H),V(0,0,H)].map(toCam));
+    if(poly.length>=3){
+      const pts=poly.map(proj);
+      g3.beginPath(); g3.moveTo(pts[0].x,pts[0].y);
+      for(let i=1;i<pts.length;i++) g3.lineTo(pts[i].x,pts[i].y);
+      g3.closePath(); g3.fillStyle='#E4EAEC'; g3.fill();
+    }
+  })();
+  g3.save(); g3.globalAlpha=.30;
+  for(let x=0;x<=W;x+=1) drawSeg3(V(x,0.004,0),V(x,0.004,H),'#84969E',1);
+  for(let z=0;z<=H;z+=1) drawSeg3(V(0,0.004,z),V(W,0.004,z),'#84969E',1);
+  g3.restore();
+  if(robot.trail.length>1){
+    for(let i=1;i<robot.trail.length;i++)
+      drawSeg3(V(robot.trail[i-1][0],0.02,robot.trail[i-1][1]),
+               V(robot.trail[i][0],0.02,robot.trail[i][1]),'rgba(0,124,132,.34)',2);
+  }
+  if(robot.path.length>1){
+    for(let i=1;i<robot.path.length;i++)
+      drawSeg3(V(robot.path[i-1][0],0.05,robot.path[i-1][1]),
+               V(robot.path[i][0],0.05,robot.path[i][1]),'#2FB3AE',3.4,[9,7]);
+  }
+
+  const faces=[];
+
+  /* walls & obstacles */
+  for(const w of WALLS){
+    const col = w.kind==='pillar' ? '#8A959B' : w.kind==='crate' ? '#A9793C' : '#48585F';
+    faces.push(...boxFaces(w.x,w.y,w.x+w.w,w.y+w.h,0,w.hgt,col,'wall'));
+  }
+
+  /* landmarks */
+  for(const o of OBJECTS){
+    const sel=robot.target&&robot.target.id===o.id;
+    const amb=robot.ambig&&robot.ambig.some(a=>a.id===o.id);
+    if(o.shape==='circle') faces.push(...cylFaces(o.x,o.y,o.r,0,o.hgt,o.color,12,'obj:'+o.id));
+    else faces.push(...boxFaces(o.x-o.r,o.y-o.r*0.74,o.x+o.r,o.y+o.r*0.74,0,o.hgt,o.color,'obj:'+o.id));
+    if(sel||amb){
+      const c=sel?'#6C5FD0':'#E8A33D';
+      faces.push(...cylFaces(o.x,o.y,o.r+0.16,o.hgt+0.05,o.hgt+0.14,c,12,'ring'));
+    }
+  }
+
+  /* robot body + wheels */
+  const rb=ROBOT_R;
+  faces.push(...cylFaces(robot.x,robot.y,rb,0.10,0.44,'#4B3F9E',14,'robot'));
+  faces.push(...cylFaces(robot.x,robot.y,rb*0.55,0.44,0.62,'#2E2668',12,'robot'));
+  faces.push(...cylFaces(robot.x,robot.y,rb*0.30,0.62,0.86,'#8B84D6',10,'mast'));
+  const fx=Math.cos(robot.th), fz=Math.sin(robot.th);
+  const sxv=-fz, szv=fx;
+  for(const s of [-1,1]){
+    const wx=robot.x+sxv*s*rb*0.86, wz=robot.y+szv*s*rb*0.86;
+    faces.push(...boxFaces(wx-0.10,wz-0.10,wx+0.10,wz+0.10,0,0.20,'#20292E','wheel'));
+  }
+  /* heading marker */
+  const nx=robot.x+fx*rb*0.95, nz=robot.y+fz*rb*0.95;
+  faces.push(...cylFaces(nx,nz,0.055,0.44,0.50,'#FFFFFF',8,'nose'));
+
+  /* project, clip, sort, fill */
+  const drawable=[];
+  for(const f of faces){
+    const camPts=f.pts.map(toCam);
+    if(camPts.every(p=>p.z<NEAR)) continue;
+    const poly=clipNear(camPts);
+    if(poly.length<3) continue;
+    let zsum=0; for(const p of poly) zsum+=p.z;
+    const zc=zsum/poly.length;
+    const lit=0.42+0.58*Math.max(0,vdot(f.n,LIGHT));
+    const fog=clamp((zc-13)/26,0,0.22);
+    drawable.push({poly:poly.map(proj), z:zc, c:shade(f.c,lit), tag:f.tag, fog});
+  }
+  drawable.sort((a,b)=>b.z-a.z);
+  for(const d of drawable){
+    g3.beginPath();
+    g3.moveTo(d.poly[0].x,d.poly[0].y);
+    for(let i=1;i<d.poly.length;i++) g3.lineTo(d.poly[i].x,d.poly[i].y);
+    g3.closePath();
+    g3.fillStyle=d.c; g3.fill();
+    if(d.fog>0.01){ g3.globalAlpha=d.fog; g3.fillStyle='#12242D'; g3.fill(); g3.globalAlpha=1; }
+  }
+
+  /* labels floating above landmarks */
+  g3.textAlign='center'; g3.font='600 12px "IBM Plex Sans",sans-serif';
+  for(const o of OBJECTS){
+    const sel=robot.target&&robot.target.id===o.id;
+    const amb=robot.ambig&&robot.ambig.some(a=>a.id===o.id);
+    const p=toCam(V(o.x,o.hgt+(sel||amb?0.46:0.26),o.y));
+    if(p.z<NEAR) continue;
+    const s=proj(p);
+    if(s.x<-60||s.x>VW+60||s.y<-40||s.y>VH+40) continue;
+    const txt=o.label[UI_LANG]+(sel?'  ✓':amb?'  ?':'');
+    let a=1;
+    if(!sel&&!amb){
+      if(p.z>27) continue;
+      a=p.z>19?Math.max(.25,1-(p.z-19)/11):1;
+    }
+    const wpx=g3.measureText(txt).width+12;
+    g3.globalAlpha=a;
+    g3.fillStyle=sel?'rgba(108,95,208,.96)':amb?'rgba(232,163,61,.96)':'rgba(255,255,255,.88)';
+    g3.fillRect(s.x-wpx/2,s.y-15,wpx,19);
+    g3.fillStyle=(sel||amb)?'#fff':'#26333A';
+    g3.fillText(txt,s.x,s.y-1);
+    g3.globalAlpha=1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   7.  2D MINIMAP (global view)
+   ═══════════════════════════════════════════════════════════ */
+const mini=document.getElementById('minimap'), gm=mini.getContext('2d');
+function drawMini(){
+  const cw=mini.width, ch=mini.height, pad=4;
+  const sc=Math.min((cw-pad*2)/W,(ch-pad*2)/H);
+  const ox=(cw-W*sc)/2, oy=(ch-H*sc)/2;
+  const X=x=>ox+x*sc, Y=y=>oy+y*sc;
+  gm.clearRect(0,0,cw,ch);
+  gm.fillStyle='#F4F7F8'; gm.fillRect(X(0),Y(0),W*sc,H*sc);
+  gm.fillStyle='#48585F';
+  for(const w of WALLS) gm.fillRect(X(w.x),Y(w.y),w.w*sc,w.h*sc);
+  for(const o of OBJECTS){
+    gm.fillStyle=o.color;
+    gm.fillRect(X(o.x)-o.r*sc*0.8,Y(o.y)-o.r*sc*0.8,o.r*sc*1.6,o.r*sc*1.6);
+    const sel=robot.target&&robot.target.id===o.id;
+    const amb=robot.ambig&&robot.ambig.some(a=>a.id===o.id);
+    if(sel||amb){
+      gm.strokeStyle=sel?'#6C5FD0':'#E8A33D'; gm.lineWidth=1.6;
+      gm.setLineDash(amb?[3,2]:[]);
+      const b=(o.r+0.2)*sc;
+      gm.strokeRect(X(o.x)-b,Y(o.y)-b,b*2,b*2);
+      gm.setLineDash([]);
+    }
+  }
+  if(robot.trail.length>1){
+    gm.strokeStyle='rgba(0,124,132,.35)'; gm.lineWidth=1.4; gm.beginPath();
+    robot.trail.forEach((p,i)=>i?gm.lineTo(X(p[0]),Y(p[1])):gm.moveTo(X(p[0]),Y(p[1])));
+    gm.stroke();
+  }
+  if(robot.path.length>1){
+    gm.strokeStyle='#007C84'; gm.lineWidth=1.6; gm.setLineDash([4,3]); gm.beginPath();
+    robot.path.forEach((p,i)=>i?gm.lineTo(X(p[0]),Y(p[1])):gm.moveTo(X(p[0]),Y(p[1])));
+    gm.stroke(); gm.setLineDash([]);
+  }
+  /* camera footprint so the 2D map explains what the 3D view is showing */
+  if(cam.mode!=='wide'){
+    gm.fillStyle='rgba(75,63,158,.13)';
+    gm.beginPath(); gm.moveTo(X(robot.x),Y(robot.y));
+    gm.arc(X(robot.x),Y(robot.y),1.9*sc,robot.th-0.55,robot.th+0.55); gm.closePath(); gm.fill();
+  }
+  gm.fillStyle='#4B3F9E';
+  gm.beginPath(); gm.arc(X(robot.x),Y(robot.y),Math.max(3,ROBOT_R*sc),0,7); gm.fill();
+  gm.strokeStyle='#fff'; gm.lineWidth=1.6; gm.beginPath();
+  gm.moveTo(X(robot.x),Y(robot.y));
+  gm.lineTo(X(robot.x+Math.cos(robot.th)*0.42),Y(robot.y+Math.sin(robot.th)*0.42)); gm.stroke();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   8.  UI
+   ═══════════════════════════════════════════════════════════ */
+let UI_LANG='en';
+const STAGES=[{n:'Listen',c:'#4B3F9E'},{n:'Transcribe',c:'#3E499A'},{n:'Interpret',c:'#325395'},
+              {n:'Ground',c:'#265E91'},{n:'Plan',c:'#19688C'},{n:'Act',c:'#0D7288'},{n:'Report',c:'#007C84'}];
+document.getElementById('pipe').innerHTML=STAGES.map((s,i)=>
+  `<div class="st" id="st${i}" style="--c:${s.c}"><b>${i+1}</b>${s.n}</div>`).join('');
+function stage(i,st){ const e=document.getElementById('st'+i); if(e) e.className='st'+(st?' '+st:''); }
+function clearStages(){ for(let i=0;i<7;i++) stage(i,null); }
+
+const readEl=document.getElementById('read');
+function render(rows){
+  readEl.innerHTML=rows.map(r=>`<div class="row"><div class="k">${r.k}</div><div class="v ${r.cls||''}">${r.v}</div></div>`).join('');
+  readEl.scrollTop=0;
+}
+function appendReply(text,cls){
+  const d=document.createElement('div'); d.className='row';
+  d.innerHTML=`<div class="k">report</div><div class="v"><div class="${cls}"><div class="who">robot</div><div class="txt">${esc(text)}</div></div></div>`;
+  readEl.appendChild(d); readEl.scrollTop=readEl.scrollHeight;
+}
+const bannerEl=document.getElementById('banner');
+function banner(m,ms){ bannerEl.textContent=m; bannerEl.classList.add('show'); clearTimeout(banner._t);
+  if(ms) banner._t=setTimeout(()=>bannerEl.classList.remove('show'),ms); }
+function hideBanner(){ bannerEl.classList.remove('show'); }
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const VOICE_LANG={en:'en-IN',hi:'hi-IN',te:'te-IN'};
+function speak(text,lang){
+  if(!('speechSynthesis' in window)) return;
+  try{ window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang=VOICE_LANG[lang]||'en-IN'; u.rate=.98;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+const SAY={
+  moving:{en:t=>`Going to the ${t}.`,hi:t=>`${t} के पास जा रहा हूँ।`,te:t=>`${t} దగ్గరకు వెళ్తున్నాను.`},
+  coming:{en:t=>`Coming to you.`,hi:t=>`आपके पास आ रहा हूँ।`,te:t=>`మీ దగ్గరకు వస్తున్నాను.`},
+  arrived:{en:t=>`I'm at the ${t}.`,hi:t=>`मैं ${t} के पास पहुँच गया।`,te:t=>`నేను ${t} దగ్గరకు చేరాను.`},
+  driving:{en:d=>`Moving ${d} ${d==1?'metre':'metres'}.`,hi:d=>`${d} मीटर चल रहा हूँ।`,te:d=>`${d} ${d==1?'మీటరు':'మీటర్లు'} కదులుతున్నాను.`},
+  backing:{en:d=>`Backing up ${d} ${d==1?'metre':'metres'}.`,hi:d=>`${d} मीटर पीछे जा रहा हूँ।`,te:d=>`${d} ${d==1?'మీటరు':'మీటర్లు'} వెనక్కి వెళ్తున్నాను.`},
+  turning:{en:(d,g)=>`Turning ${d} ${g}°.`,hi:(d,g)=>`${g} डिग्री ${d==='left'?'बाएँ':'दाएँ'} मुड़ रहा हूँ।`,
+           te:(d,g)=>`${g} డిగ్రీలు ${d==='left'?'ఎడమవైపు':'కుడివైపు'} తిరుగుతున్నాను.`},
+  done:{en:()=>`Done.`,hi:()=>`हो गया।`,te:()=>`అయిపోయింది.`},
+  stopped:{en:()=>`Stopped.`,hi:()=>`रुक गया।`,te:()=>`ఆగిపోయాను.`},
+  blocked:{en:d=>`Something is in the way. I stopped after ${d} ${d==1?'metre':'metres'}.`,
+           hi:d=>`रास्ते में कुछ है। ${d} मीटर के बाद रुक गया।`,
+           te:d=>`దారిలో ఏదో ఉంది. ${d} మీటర్ల తర్వాత ఆగాను.`},
+  noPath:{en:t=>`I can see the ${t}, but I can't find a way to reach it.`,
+          hi:t=>`मुझे ${t} दिख रहा है, पर वहाँ पहुँचने का रास्ता नहीं मिल रहा।`,
+          te:t=>`${t} కనిపిస్తోంది, కానీ అక్కడికి వెళ్ళే దారి దొరకడం లేదు.`},
+  ambig:{en:(a,b)=>`I can see two — the ${a} and the ${b}. Which one?`,
+         hi:(a,b)=>`मुझे दो दिख रहे हैं — ${a} और ${b}। कौन सा?`,
+         te:(a,b)=>`నాకు రెండు కనిపిస్తున్నాయి — ${a}, ${b}. ఏది?`},
+  unknown:{en:()=>`I didn't understand that as a movement command.`,
+           hi:()=>`मैं इसे चलने का आदेश नहीं समझ पाया।`,
+           te:()=>`ఇది కదిలే ఆదేశంగా నాకు అర్థం కాలేదు.`}
+};
+const say=(k,l,...a)=>SAY[k][l](...a);
+
+/* ═══════════════════════════════════════════════════════════
+   9.  CONTROL LOOP
+   ═══════════════════════════════════════════════════════════ */
+let pending=null;
+function handle(text,source){
+  document.getElementById('srcTag').textContent=(source==='voice'?'microphone · ':'typed · ')+VOICE_LANG[UI_LANG];
+  clearStages(); stage(0,'done'); stage(1,'done'); stage(2,'on');
+  const p=parse(text);
+  const rows=[{k:'heard',v:esc(text),cls:'heard'}];
+
+  if(pending){
+    const t=normalise(text), k=tokens(t);
+    const pick=pending.filter(o=>o.mods.some(m=>termHit(k,t,m)));
+    if(pick.length===1){
+      rows.push({k:'repair',v:`Clarification resolved → <span class="chip ok">${pick[0].label[UI_LANG]}</span>`});
+      pending=null; stage(2,'done'); return goTo(pick[0],rows,{});
+    }
+    if(p.intent==='goto'&&p.slots.candidates.length===1){ pending=null; stage(2,'done'); return goTo(p.slots.candidates[0],rows,p.slots); }
+  }
+
+  rows.push({k:'intent',v:`<span class="chip n">${p.intent}</span>`+
+    (p.slots.deictic?`<span class="chip n">deictic</span>`:'')+
+    (p.slots.speed?`<span class="chip n">speed: ${p.slots.speed}</span>`:'')+
+    (p.note?`<div class="muted" style="margin-top:5px;font-size:12px">${esc(p.note)}</div>`:'')});
+  stage(2,'done'); setSpeed(p.slots.speed||'normal');
+
+  if(p.intent==='stop') return doStop(rows);
+  if(p.intent==='goto') return doGoto(p,rows);
+  if(p.intent==='turn') return doTurn(p,rows);
+  if(p.intent==='drive') return doDrive(p,rows);
+
+  stage(6,'on');
+  rows.push({k:'ground',v:'<span class="chip no">no object named</span>'});
+  rows.push({k:'reply',v:`<div class="say no"><div class="who">robot</div><div class="txt">${say('unknown',UI_LANG)}</div></div>`});
+  render(rows); speak(say('unknown',UI_LANG),UI_LANG);
+  robot.target=null; robot.ambig=null; robot.path=[];
+}
+
+function doStop(rows){
+  robot.queue=[];robot.v=0;robot.w=0;robot.path=[];robot.target=null;robot.ambig=null;robot.busy=false;
+  for(let i=0;i<6;i++) stage(i,'done'); stage(6,'on');
+  rows.push({k:'act',v:'<span class="chip ok">all motion cancelled</span>'});
+  rows.push({k:'reply',v:`<div class="say"><div class="who">robot</div><div class="txt">${say('stopped',UI_LANG)}</div></div>`});
+  render(rows); speak(say('stopped',UI_LANG),UI_LANG); hideBanner();
+}
+
+function doGoto(p,rows){
+  const c=p.slots.candidates; stage(3,'on');
+  if(c.length>1){
+    pending=c; robot.target=null; robot.path=[]; robot.ambig=c;
+    rows.push({k:'ground',v:c.map(o=>`<span class="chip amb">${o.label[UI_LANG]}</span>`).join('')+
+      `<div class="muted" style="margin-top:6px;font-size:12px">Two matches above threshold. Perception cannot decide.</div>`});
+    stage(6,'on');
+    const m=say('ambig',UI_LANG,c[0].label[UI_LANG],c[1].label[UI_LANG]);
+    rows.push({k:'reply',v:`<div class="say ask"><div class="who">robot asks</div><div class="txt">${m}</div></div>`});
+    render(rows); speak(m,UI_LANG);
+    banner('Ambiguous reference — the robot is asking, not guessing. Answer with the colour.');
+    return;
+  }
+  if(c.length===1) return goTo(c[0],rows,p.slots);
+}
+
+function standoff(o){
+  const dx=robot.x-o.x, dy=robot.y-o.y, d=Math.hypot(dx,dy)||1;
+  const want=o.r+ROBOT_R+0.24;
+  const best={x:o.x+dx/d*want,y:o.y+dy/d*want};
+  if(free(Math.floor(best.x/CELL),Math.floor(best.y/CELL))) return best;
+  for(let k=0;k<28;k++){
+    const a=k/28*2*Math.PI, px=o.x+Math.cos(a)*want, py=o.y+Math.sin(a)*want;
+    if(free(Math.floor(px/CELL),Math.floor(py/CELL))) return {x:px,y:py};
+  }
+  for(let k=0;k<28;k++){
+    const a=k/28*2*Math.PI, px=o.x+Math.cos(a)*(want+0.5), py=o.y+Math.sin(a)*(want+0.5);
+    if(free(Math.floor(px/CELL),Math.floor(py/CELL))) return {x:px,y:py};
+  }
+  return best;
+}
+const pathLen=p=>{let d=0;for(let i=1;i<p.length;i++)d+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return d;};
+
+function goTo(obj,rows,slots){
+  robot.ambig=null; stage(3,'done');
+  rows.push({k:'ground',v:`<span class="chip ok">${obj.label[UI_LANG]}</span>`+
+    `<span class="muted" style="font-size:12px"> — unique match, bound to a pose</span>`});
+  stage(4,'on');
+  const st=standoff(obj);
+  const path=astar(robot.x,robot.y,st.x,st.y);
+  if(!path){
+    stage(4,'done'); stage(6,'on');
+    const m=say('noPath',UI_LANG,obj.label[UI_LANG]);
+    rows.push({k:'plan',v:'<span class="chip no">no feasible path</span>'});
+    rows.push({k:'reply',v:`<div class="say no"><div class="who">robot</div><div class="txt">${m}</div></div>`});
+    render(rows); speak(m,UI_LANG);
+    banner('Grounded, but not reachable. The robot reports why instead of failing silently.',6000);
+    return;
+  }
+  robot.path=path; robot.target=obj; robot.queue=[];
+  for(let i=1;i<path.length;i++){
+    const [px,py]=path[i], [qx,qy]=path[i-1];
+    robot.queue.push({type:'rotate',th:Math.atan2(py-qy,px-qx)});
+    robot.queue.push({type:'drive',x:px,y:py});
+  }
+  robot.queue.push({type:'rotate',th:Math.atan2(obj.y-st.y,obj.x-st.x)});
+  robot.busy=true;
+  robot.onDone=()=>{
+    stage(5,'done'); stage(6,'on');
+    const m=say('arrived',UI_LANG,obj.label[UI_LANG]);
+    appendReply(m,'say'); speak(m,UI_LANG); robot.path=[];
+  };
+  stage(4,'done'); stage(5,'on');
+  rows.push({k:'plan',v:`<span class="chip n">${path.length-1} waypoints</span><span class="chip n">${pathLen(path).toFixed(2)} m</span>`});
+  rows.push({k:'skills',v:`navigate_to(${obj.id})<br>face(${obj.id})`,cls:'mono'});
+  const m=slots&&slots.deictic?say('coming',UI_LANG):say('moving',UI_LANG,obj.label[UI_LANG]);
+  rows.push({k:'reply',v:`<div class="say"><div class="who">robot</div><div class="txt">${m}</div></div>`});
+  render(rows); speak(m,UI_LANG); hideBanner();
+  if(slots&&slots.deictic) banner('"Here" has no meaning without a speaker. It resolved to the person in the room.',6500);
+}
+
+function doTurn(p,rows){
+  stage(3,'done'); stage(4,'on');
+  const sign=p.slots.dir==='left'?1:-1;
+  robot.queue=[{type:'rotate',th:wrap(robot.th+sign*p.slots.deg*Math.PI/180)}];
+  robot.busy=true; robot.path=[]; robot.target=null; robot.ambig=null;
+  robot.onDone=()=>{stage(5,'done');stage(6,'on');appendReply(say('done',UI_LANG),'say');};
+  stage(4,'done'); stage(5,'on');
+  rows.push({k:'ground',v:'<span class="muted">no object needed — egocentric motion</span>'});
+  rows.push({k:'plan',v:`<span class="chip n">${p.slots.deg}° ${p.slots.dir}</span>`});
+  rows.push({k:'skills',v:`rotate(${sign>0?'+':'-'}${p.slots.deg}deg)`,cls:'mono'});
+  const m=say('turning',UI_LANG,p.slots.dir,p.slots.deg);
+  rows.push({k:'reply',v:`<div class="say"><div class="who">robot</div><div class="txt">${m}</div></div>`});
+  render(rows); speak(m,UI_LANG); hideBanner();
+}
+
+function doDrive(p,rows){
+  stage(3,'done'); stage(4,'on');
+  const want=p.slots.dist;
+  const heading=p.slots.dir>0?robot.th:wrap(robot.th+Math.PI);
+  const avail=freeRun(robot.x,robot.y,heading,want);
+  const blocked=avail<want-0.05;
+  const tx=robot.x+Math.cos(heading)*avail, ty=robot.y+Math.sin(heading)*avail;
+  robot.path=[[robot.x,robot.y],[tx,ty]]; robot.target=null; robot.ambig=null;
+  robot.queue=[{type:'drive',x:tx,y:ty,rev:p.slots.dir<0}];
+  robot.busy=true;
+  const msgDone=blocked?say('blocked',UI_LANG,avail.toFixed(1)):say('done',UI_LANG);
+  robot.onDone=()=>{
+    stage(5,'done'); stage(6,'on');
+    appendReply(msgDone,blocked?'say no':'say'); speak(msgDone,UI_LANG); robot.path=[];
+    if(blocked) banner('Affordance check: the instruction was understood, but the world refused part of it.',6000);
+  };
+  stage(4,'done'); stage(5,'on');
+  rows.push({k:'ground',v:'<span class="muted">no object needed — egocentric motion</span>'});
+  rows.push({k:'plan',v:`<span class="chip n">${want} m requested</span>`+
+    (blocked?`<span class="chip amb">only ${avail.toFixed(2)} m free</span>`:`<span class="chip ok">path clear</span>`)});
+  rows.push({k:'skills',v:`drive(${p.slots.dir>0?'+':'-'}${avail.toFixed(2)}m)`,cls:'mono'});
+  const m=p.slots.dir>0?say('driving',UI_LANG,want):say('backing',UI_LANG,want);
+  rows.push({k:'reply',v:`<div class="say"><div class="who">robot</div><div class="txt">${m}</div></div>`});
+  render(rows); speak(m,UI_LANG); hideBanner();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   10.  SPEECH IN  — with a real diagnostic
+   ═══════════════════════════════════════════════════════════ */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null, listening=false, netRetry=0;
+const micBtn=document.getElementById('mic'), micTxt=document.getElementById('micTxt');
+
+function browserInfo(){
+  const ua=navigator.userAgent;
+  const isBrave=!!(navigator.brave&&navigator.brave.isBrave);
+  const isEdge=/Edg\//.test(ua);
+  const isOpera=/OPR\//.test(ua);
+  const isChrome=/Chrome\//.test(ua)&&!isEdge&&!isOpera&&!isBrave;
+  const secure=window.isSecureContext;
+  const proto=location.protocol;
+  return {ua,isBrave,isEdge,isOpera,isChrome,secure,proto};
+}
+
+function networkDiagnostic(){
+  const b=browserInfo();
+  const causes=[];
+  if(b.isBrave) causes.push('<b style="display:inline">Brave blocks Google’s speech service by default.</b> Open the same page in Google Chrome.');
+  if(b.isOpera) causes.push('Opera often ships without the speech API key. Use Google Chrome.');
+  if(!b.isChrome&&!b.isEdge) causes.push('This browser may be a Chromium build without Google’s speech API key. Use <b style="display:inline">Google Chrome</b> specifically.');
+  if(b.proto==='file:') causes.push('The page is open from a <code>file://</code> path. Serve it over <code>http://localhost</code> instead.');
+  causes.push('Your campus or office network may be filtering Google’s speech endpoint. <b style="display:inline">Try a phone hotspot</b> — this is the most common cause when the rest of the internet works.');
+  causes.push('A VPN or DNS filter can block it while normal browsing still works. Turn it off and retry.');
+  return `<div class="diag"><b>The speech service could not be reached</b>
+    This is not your internet connection — the page loaded fine. Chrome streams microphone audio to
+    Google servers for recognition, and <i>that specific service</i> is unreachable. Most likely:
+    <ol>${causes.map(c=>`<li>${c}</li>`).join('')}</ol>
+    <div style="margin-top:8px">Typing works regardless — the parser is identical, and
+    <b style="display:inline">Auto demo</b> runs the whole presentation hands-free.</div></div>`;
+}
+
+if(!SR){
+  micBtn.disabled=true; micTxt.textContent='Mic unsupported';
+  micBtn.title='The Web Speech API needs Chrome or Edge. Typing works in every browser.';
+}else{
+  micBtn.addEventListener('click',()=>listening?stopRec():startRec());
+}
+
+function startRec(){
+  try{
+    rec=new SR();
+    rec.lang=VOICE_LANG[UI_LANG];
+    rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
+    rec.onstart=()=>{
+      listening=true; micBtn.classList.add('live'); micTxt.textContent='Listening…';
+      clearStages(); stage(0,'on');
+      render([{k:'listening',v:`<span class="muted">Microphone open — ${VOICE_LANG[UI_LANG]}</span>`}]);
+    };
+    rec.onresult=e=>{
+      netRetry=0;
+      let interim='',fin='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const tr=e.results[i][0].transcript;
+        if(e.results[i].isFinal) fin+=tr; else interim+=tr;
+      }
+      if(interim){ stage(0,'done'); stage(1,'on'); document.getElementById('cmd').value=interim; }
+      if(fin){ document.getElementById('cmd').value=fin; handle(fin.trim(),'voice'); }
+    };
+    rec.onerror=ev=>{
+      stopRec();
+      if(ev.error==='network'&&netRetry<1){
+        netRetry++;
+        render([{k:'microphone',v:'<span class="chip amb">speech service hiccup — retrying once…</span>'}]);
+        setTimeout(()=>startRec(),700);
+        return;
+      }
+      if(ev.error==='network'){ render([{k:'microphone',v:networkDiagnostic()}]); return; }
+      const m=ev.error==='not-allowed'
+          ? 'Microphone permission denied. Click the padlock in the address bar and allow the microphone.'
+        : ev.error==='no-speech' ? 'Nothing was heard. Try again, closer to the microphone.'
+        : ev.error==='audio-capture' ? 'No microphone found. Check that one is connected and selected.'
+        : 'Speech error: '+ev.error;
+      render([{k:'microphone',v:`<span class="chip no">${esc(m)}</span>
+        <div class="muted" style="margin-top:6px">Type the command instead — the parser is identical.</div>`}]);
+    };
+    rec.onend=()=>stopRec();
+    rec.start();
+  }catch(e){ stopRec(); }
+}
+function stopRec(){
+  listening=false; micBtn.classList.remove('live'); micTxt.textContent='Speak';
+  try{ rec&&rec.stop(); }catch(e){}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   11.  AUTO DEMO  — the whole story, hands-free
+   ═══════════════════════════════════════════════════════════ */
+const SCRIPT=[
+  {lang:'en',text:'go to the red table',            wait:1200},
+  {lang:'en',text:'turn right 90 degrees',          wait:900},
+  {lang:'te',text:'బల్ల దగ్గరికి రా',                 wait:3400},
+  {lang:'te',text:'నీలం',                            wait:1400},
+  {lang:'hi',text:'दरवाज़े के पास जाओ',               wait:1400},
+  {lang:'en',text:'go forward 6 meters',            wait:1600},
+  {lang:'te',text:'రా',                              wait:1600},
+  {lang:'en',text:'stop',                            wait:900}
+];
+let demoOn=false, demoIdx=0, demoTimer=null;
+const demoBtn=document.getElementById('demo');
+demoBtn.addEventListener('click',()=>demoOn?stopDemo():startDemo());
+function startDemo(){
+  demoOn=true; demoIdx=0; demoBtn.classList.add('on'); demoBtn.textContent='■ Stop demo';
+  doReset(); setTimeout(nextDemo,500);
+}
+function stopDemo(){
+  demoOn=false; clearTimeout(demoTimer); demoBtn.classList.remove('on'); demoBtn.textContent='▶ Auto demo';
+}
+function nextDemo(){
+  if(!demoOn) return;
+  if(demoIdx>=SCRIPT.length){ stopDemo(); banner('Demo complete. Try your own command — speak or type.',6000); return; }
+  const s=SCRIPT[demoIdx++];
+  setLang(s.lang);
+  document.getElementById('cmd').value=s.text;
+  handle(s.text,'typed');
+  document.getElementById('cmd').value='';
+  const poll=()=>{
+    if(!demoOn) return;
+    if(robot.queue.length>0){ demoTimer=setTimeout(poll,220); return; }
+    demoTimer=setTimeout(nextDemo,s.wait);
+  };
+  demoTimer=setTimeout(poll,420);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   12.  INPUT WIRING
+   ═══════════════════════════════════════════════════════════ */
+document.getElementById('send').addEventListener('click',submit);
+document.getElementById('cmd').addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+function submit(){
+  const el=document.getElementById('cmd'), v=el.value.trim();
+  if(!v) return; handle(v,'typed'); el.value='';
+}
+function doReset(){
+  robot.x=HOME.x; robot.y=HOME.y; robot.th=HOME.th;
+  robot.queue=[]; robot.path=[]; robot.trail=[]; robot.target=null; robot.ambig=null;
+  robot.busy=false; robot.v=0; robot.w=0; pending=null;
+  cam.init=false; clearStages(); hideBanner();
+  render([{k:'status',v:'<span class="muted">Reset. Waiting for a command.</span>'}]);
+}
+document.getElementById('reset').addEventListener('click',()=>{stopDemo();doReset();});
+
+function setLang(l){
+  UI_LANG=l;
+  [...document.getElementById('langsel').children].forEach(c=>c.classList.toggle('on',c.dataset.l===l));
+  if(listening) stopRec();
+  fillExamples();
+  document.getElementById('cmd').placeholder =
+    l==='hi'?'आदेश टाइप करें…':l==='te'?'ఆదేశం టైప్ చేయండి…':'Type a command in English, हिन्दी or తెలుగు…';
+}
+document.getElementById('langsel').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(b) setLang(b.dataset.l);
+});
+document.getElementById('viewbtns').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  cam.mode=b.dataset.v; cam.init=false;
+  [...e.currentTarget.children].forEach(c=>c.classList.toggle('on',c===b));
+});
+
+const EXAMPLES={
+  en:[['go to the red table'],['come here'],['go to the table',1],['turn left 90 degrees'],
+      ['go forward 6 meters'],['go slowly to the plant'],['go to the charging dock'],['stop']],
+  hi:[['लाल मेज़ के पास जाओ'],['इधर आओ'],['मेज़ के पास जाओ',1],['बाएँ मुड़ो'],
+      ['छह मीटर आगे जाओ'],['धीरे पौधे के पास जाओ'],['दरवाज़े के पास जाओ'],['रुको']],
+  te:[['ఎరుపు బల్ల దగ్గరికి రా'],['రా'],['బల్ల దగ్గరికి రా',1],['ఎడమవైపు తిరుగు'],
+      ['ఆరు మీటర్లు ముందుకు వెళ్ళు'],['నెమ్మదిగా మొక్క దగ్గరికి రా'],['తలుపు దగ్గరికి వెళ్ళు'],['ఆగు']]
+};
+function fillExamples(){
+  const box=document.getElementById('examples');
+  const lbl=UI_LANG==='hi'?'उदाहरण':UI_LANG==='te'?'ఉదాహరణలు':'try';
+  box.innerHTML=`<span class="lbl">${lbl}</span>`+EXAMPLES[UI_LANG].map(([s,a])=>
+    `<button class="ex ${a?'amb':''}" data-c="${esc(s)}">${esc(s)}</button>`).join('');
+}
+document.getElementById('examples').addEventListener('click',e=>{
+  const b=e.target.closest('.ex'); if(b) handle(b.dataset.c,'typed');
+});
+
+/* ═══════════════════════════════════════════════════════════
+   13.  LOOP + BOOT
+   ═══════════════════════════════════════════════════════════ */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  stepRobot(dt);
+  draw3D(); drawMini();
+  document.getElementById('poseTag').textContent=
+    `x ${robot.x.toFixed(2)} m · y ${robot.y.toFixed(2)} m · θ ${Math.round(wrap(robot.th)*180/Math.PI)}°`;
+  requestAnimationFrame(loop);
+}
+buildGrid(); fillExamples(); resize3();
+window.addEventListener('resize',resize3);
+requestAnimationFrame(loop);
+
+/* test hooks */
+window.__parse=parse; window.__handle=handle; window.__robot=robot;
+window.__astar=astar; window.__setLang=setLang; window.__OBJECTS=OBJECTS;
+window.__free=free; window.__diag=networkDiagnostic;
+</script>
+</body>
+</html>
